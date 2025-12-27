@@ -1,0 +1,128 @@
+import { useEffect, useState, type FormEvent } from "react"
+import { Header } from "../../components/Header"
+import { Input } from "../../components/input"
+import { FiTrash } from "react-icons/fi"
+import { db } from "../../services/firabeseConnection"
+import { addDoc , collection , onSnapshot , query , orderBy , doc , deleteDoc } from "firebase/firestore"
+export function Admin(){
+    const [ nameInput , setNameInput] = useState("")
+    const [urlInput , setUrlInput] = useState("")
+    const [ textColor , setTextColor] = useState("#f1f1f1")
+    const [textFundo , setTextFundo] = useState("#121212")
+
+    const [links , setLinks] = useState<listProps[]>([])
+    interface listProps{
+        id: string , 
+        name: string ,
+        url: string , 
+        bg: string , 
+        bf: string
+    }
+
+    useEffect(() => {
+        const linksRef = collection(db , "links")
+        const queryRef = query(linksRef , orderBy("create" , "asc"))
+
+        const snpshot = onSnapshot(queryRef , (snapshot) => {
+            const lista = [] as listProps[]
+            snapshot.forEach((doc) => {
+                lista.push({
+                    id: doc.id , 
+                    name: doc.data().name , 
+                    url: doc.data().url , 
+                    bg: doc.data().bg , 
+                    bf: doc.data().bf
+                })
+            })
+            setLinks(lista)
+        })
+
+        return () => {
+           snpshot()
+        }
+
+    } , [])
+
+  
+    async function HandleRegister(e: FormEvent){
+        e.preventDefault()
+        if(nameInput === '' || urlInput === ''){
+            alert("PReencha os todos os campos")
+            return
+        }
+        addDoc(collection(db , "links") , {
+            name: nameInput , 
+            url: urlInput , 
+            bg: textColor , 
+            bf: textFundo , 
+            create: new Date()
+        })
+        .then(() => {
+            console.log("Cadastrado com sucesso")
+            setNameInput("")
+            setUrlInput("")
+        })
+        .catch((error) => {
+            console.log(error)
+        })
+    }
+
+    async function handleDelete(id: string){
+        const docRef = doc(db , 'links' , id )
+        await deleteDoc(docRef)
+    }
+
+    return(
+        <div className="flex items-center flex-col min-h-screen pb-7 px-2">
+            <Header/>
+            <form className="flex flex-col mt-8 mb-3 w-full max-w-xl " onSubmit={HandleRegister}>
+                <label className="text-white font-medium mt-2 mb-2">Nome do link</label>
+                <Input value={nameInput} onChange={(e) => setNameInput(e.target.value)} placeholder="Digite o nome do link..."/>
+
+
+                <label className="text-white font-medium mt-2 mb-2">URL do link</label>
+                <Input value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="Digite a URL do link..." type="url"/>
+
+                <section className="flex my-4 gap-5">
+                    <div className="flex gap-3.5 items-center">
+                      <label className="text-white font-medium mt-2 mb-2">Cor do link</label>  
+                      <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)}/>
+
+
+                      <label className="text-white font-medium mt-2 mb-2">Fundo do link</label>  
+                      <input type="color" value={textFundo} onChange={(e) => setTextFundo(e.target.value)}/>
+                    </div>
+                </section>
+
+                {nameInput !== '' && (
+                    <div className="flex items-center justify-start flex-col mb-7 p-1 border-gray-100/25 border">
+
+                    <label className="text-white font-medium mt-2 mb-3 rounded-md">Vejá como esta ficando:</label>
+
+                    <article className="w-11/12 max-w-lg flex flex-col items-center justify-between bg-zinc-900 rounded px-1 py-3" style={{marginBottom: 8 , marginTop: 8 , background: textFundo}}>
+
+                        <p className="font-bold" style={{color: textColor}}>{nameInput}</p>
+
+                    </article>
+                </div>
+                )}
+                
+
+
+                <button type="submit" className="bg-blue-600 h-9 rounded-md text-white font-medium gap-4 flex justify-center items-center mb-7">Cadastrar</button>
+            </form>
+
+            <h2 className="font-bold text-white mb-4 text-2xl">Meus Links </h2>
+
+            {links.map((item) => (
+                <article className="flex justify-between items-center gap-1.5 w-11/12 max-w-xl rounded py-3 px-2 mb-2 select-none" style={{background: item.bf, color: item.bg}} key={item.id}>
+
+                <p>{item.name}</p>
+                <div>
+                    <button className=" border-dashed py-1 rounded bg-transparent"><FiTrash size={18} color="#fff" onClick={() => handleDelete(item.id)}/></button>
+                </div>
+            </article>
+            ))}
+        </div>
+    )
+}
